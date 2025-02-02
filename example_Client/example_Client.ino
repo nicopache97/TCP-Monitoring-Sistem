@@ -1,11 +1,14 @@
 #include <WiFi.h>
 
-// WiFi
-char wifi_ssid[32]="Lucky";   // wifi_ssid
-char wifi_password[32]"123412341234";    // wifi_password
-// Server
-char server_ip[16]="192.168.1.10";
-int server_port=12345;
+  // WiFi
+char wifi_ssid[32] = "Lucky";   // wifi_ssid
+char wifi_password[32] = "123412341234";    // wifi_password
+  // Server
+char server_ip[16] = "192.168.1.10";
+int server_port = 12345;
+
+#define PIN_LED 2
+#define PIN_READ 0
 
 //constructor
 WiFiClient client;
@@ -16,7 +19,7 @@ void setup() {
   Serial.println("Starting...");
 
 
-  pinMode(pin_led, OUTPUT);
+  pinMode(PIN_LED, OUTPUT);
 
     // Conectar a WiFi
   WiFi.begin(wifi_ssid, wifi_password);
@@ -27,25 +30,30 @@ void setup() {
   Serial.println("\n \t - Conectado a WiFi");
 
   for(int i=0;i<15;i++){ // señal visual de inicio completo
-  digitalWrite(pin_led, HIGH);delay(35);
-  digitalWrite(pin_led, LOW); delay(35);
+    digitalWrite(PIN_LED, HIGH);delay(35);
+    digitalWrite(PIN_LED, LOW); delay(35);
   }
 
 }
 
 void loop() {
-    uint16_t medicion = analogRead(GPIO); // lectura potenciometro
+  uint16_t medicion = analogRead(PIN_READ); // lectura potenciometro
 
-    Serial.print("medicion : ");
-    Serial.println(medicion);
+  Serial.print("medicion : ");// envia valores por puerto serie
+  Serial.println(medicion);
 
-    // Conectar al servidor
-    if (client.connect(config.server_ip, config.server_port)) {
-        // convierte la lectura a string 2 decimales y lo envia por TCP
-        client.println(medicion);
-    }
-    delay(1000);
+  if (client.connect(server_ip, server_port)) { // envia valores a servidor
+    client.println(medicion);
+  }else{
+    Serial.println("/ fallo envio de datos");
+  }
+  
+  for(int i=0;i<15;i++){ // señal visual de inicio completo
+  digitalWrite(PIN_LED, HIGH);delay(35);
+  digitalWrite(PIN_LED, LOW); delay(35);
+  }
 
+  delay(1000);
 }
 
 
