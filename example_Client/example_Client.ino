@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <PIDController.hpp>
 
 // Definiciones de pines
 #define PIN_LED 2
@@ -20,6 +21,12 @@ int writeIndex = 0; // Índice de escritura del buffer
 
 // Cliente WiFi
 WiFiClient client;
+
+PID::PIDParameters<double> parameters(4.0, 0.2, 1); // parametros Agresivos
+PID::PIDController<double> pidController(parameters);
+
+uint16_t time_update = 200; // tiempo de espera general [ms]
+#define SET_POINT 500 // valor umbral de estabilidad pid
 
 // Mutex para proteger el acceso al buffer
 SemaphoreHandle_t xMutex;
@@ -44,6 +51,11 @@ void init() {
   }
   Serial.println("\n \t - Conectado a WiFi");
 
+  // Configura PID
+  pidController.Input = analogRead(PIN_READ);
+  pidController.Setpoint = SET_POINT;
+  pidController.TurnOn();
+
   // Señal visual de inicio completo
   for(int i=0;i<15;i++){
     digitalWrite(PIN_LED, HIGH); delay(35);
@@ -54,15 +66,22 @@ void init() {
 // Tarea para leer valores analógicos
 void analog_read_task(void * param) {
   for (;;) {
-    uint16_t localMedicion = analogRead(PIN_READ); // Leer valor analógico
-    if (xSemaphoreTake(xMutex, portMAX_DELAY)) { // Tomar el mutex (semáforo que protege el acceso al buffer)
-      buffer[writeIndex] = localMedicion; // Escribir valor en el buffer
-      writeIndex = (writeIndex + 1) % BUFFER_SIZE; // Actualizar índice de escritura
-      xSemaphoreGive(xMutex); // Liberar el mutex
+    if ( (writeIndex+BUFFER_SIZE-1) % BUFFER_SIZE != readIndex){ // si hay lugar en el buffer
+      uint16_t localMedicion = analogRead(PIN_READ); // Leer valor analógico
+      pidController.Input = localMedicion; // actualiza el controlador PID interno
+      pidController.Update();
+      uint16_t SalidaPID = pidController.Output;
+      if (xSemaphoreTake(xMutex, portMAX_DELAY)) { // Tomar el mutex (semáforo que protege el acceso al buffer)
+        buffer[writeIndex] = SalidaPID; // Escribir valor PID Actualizado en el buffer
+        writeIndex = (writeIndex + 1) % BUFFER_SIZE; // Actualizar índice de escritura
+        xSemaphoreGive(xMutex); // Liberar el mutex
+      }
+      Serial.print("Medicion Local: ");
+      Serial.print(localMedicion);
+      Serial.print("  Salida PID: ");
+      Serial.println(SalidaPID);
     }
-    Serial.print("medicion : ");
-    Serial.println(localMedicion);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(time_update / portTICK_PERIOD_MS);
   }
 }
 
@@ -80,13 +99,14 @@ void send_data_task(void * param) {
       }
       xSemaphoreGive(xMutex);
     }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(time_update / portTICK_PERIOD_MS);
   }
 }
 
 // Configuración inicial
 void setup() {
   init();
+
   xMutex = xSemaphoreCreateMutex();
 
     // tarea Lectura Analogica + PID -> Core 0
