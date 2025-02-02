@@ -4,7 +4,7 @@
 char wifi_ssid[32] = "Lucky";   // wifi_ssid
 char wifi_password[32] = "123412341234";    // wifi_password
   // Server
-char server_ip[16] = "192.168.1.10";
+char server_ip[16] = "192.168.1.65";
 int server_port = 12345;
 
 #define PIN_LED 2
@@ -17,7 +17,6 @@ void setup() {
   Serial.begin(115200); delay(10);
   Serial.println();
   Serial.println("Starting...");
-
 
   pinMode(PIN_LED, OUTPUT);
 
@@ -38,12 +37,11 @@ void setup() {
 
 void loop() {
   uint16_t medicion = analogRead(PIN_READ); // lectura potenciometro
-
   Serial.print("medicion : ");// envia valores por puerto serie
   Serial.println(medicion);
 
   if (client.connect(server_ip, server_port)) { // envia valores a servidor
-    client.println(medicion);
+    client.print(medicion);
   }else{
     Serial.println("/ fallo envio de datos");
   }
@@ -55,9 +53,3 @@ void loop() {
 
   delay(1000);
 }
-
-
-
-
-
-
