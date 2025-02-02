@@ -88,26 +88,13 @@ void send_data_task(void * param) {
 void setup() {
   init();
   xMutex = xSemaphoreCreateMutex();
-  xTaskCreatePinnedToCore( // tarea Lectura Analogica + PID -> Core 0
-    analog_read_task,  
-    "AnalogReadTask",
-    10000,           
-    NULL,           
-    1,              
-    NULL,            
-    0);
 
-  xTaskCreatePinnedToCore( // tarea Enviar datos UDP por WIFI -> Core 1
-    send_data_task,   
-    "SendDataTask", 
-    10000,          
-    NULL,            
-    1,              
-    NULL,           
-    1);             
+    // tarea Lectura Analogica + PID -> Core 0
+  xTaskCreatePinnedToCore( analog_read_task,"", 10000,NULL,1,NULL,0);  
+
+    // tarea Enviar datos UDP por WIFI -> Core 1
+  xTaskCreatePinnedToCore( send_data_task,"", 10000,NULL,1,NULL,1);             
 }
 
-// Bucle principal vacío ya que las tareas se ejecutan en paralelo
 void loop() {
-  // El loop se deja vacío ya que las tareas se ejecutan en paralelo
 }
