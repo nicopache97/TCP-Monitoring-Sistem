@@ -1,3 +1,4 @@
+
 #include <WiFi.h>
 
   // WiFi
@@ -8,7 +9,9 @@ char server_ip[16] = "192.168.1.65";
 int server_port = 12345;
 
 #define PIN_LED 2
-#define PIN_READ 0
+#define PIN_READ 32 // GPIO32 usa el ADC1 que NO INTERFIERE CON EL WIFI
+
+int medicion;
 
 //constructor
 WiFiClient client;
@@ -19,6 +22,7 @@ void setup() {
   Serial.println("Starting...");
 
   pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_READ, INPUT);
 
     // Conectar a WiFi
   WiFi.begin(wifi_ssid, wifi_password);
@@ -36,20 +40,22 @@ void setup() {
 }
 
 void loop() {
-  uint16_t medicion = analogRead(PIN_READ); // lectura potenciometro
+  medicion = analogRead(PIN_READ); // lectura potenciometro
   Serial.print("medicion : ");// envia valores por puerto serie
-  Serial.println(medicion);
+  Serial.print(medicion);
+  Serial.println();
 
   if (client.connect(server_ip, server_port)) { // envia valores a servidor
     client.print(medicion);
   }else{
     Serial.println("/ fallo envio de datos");
   }
-  
+
+
   for(int i=0;i<15;i++){ // señal visual de inicio completo
-  digitalWrite(PIN_LED, HIGH);delay(35);
-  digitalWrite(PIN_LED, LOW); delay(35);
+    digitalWrite(PIN_LED, HIGH); delay(35);
+    digitalWrite(PIN_LED, LOW);  delay(35);
   }
 
-  delay(1000);
+  delay(1000); 
 }
