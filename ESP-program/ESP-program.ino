@@ -36,7 +36,7 @@ uint16_t value_output;
 // Cliente WiFi
 WiFiClient client;
 
-#define time_update_PID  200 // tiempo de refresco PID [ms]
+#define time_update_PID  50 // tiempo de refresco PID [ms]
 #define time_update_TCP  1000 // tiempo de refresco entre actualizacion al servidor TCP [ms]
 
 // Funciones
@@ -65,6 +65,8 @@ void init() {
       Serial.println(".");
   }
   Serial.println("\n \t - Conectado a WiFi");
+  
+  WiFi.setAutoReconnect(true);
 
   // Señal visual de inicio completo
   for(int i=0;i<15;i++){
@@ -111,38 +113,55 @@ void PID_task(void * param) {
   }
 }
 
+void reconnectWiFi() {
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Reconectando a WiFi...");
+    WiFi.disconnect();
+    WiFi.begin(wifi_ssid, wifi_password);
+    delay(5000);
+  }
+}
+
+void reconnectTCP() {
+  while (!client.connected()) {
+    Serial.println("Reconectando al servidor TCP...");
+    if (client.connect(server_ip, server_port)) {
+      Serial.println("Reconectado al servidor TCP");
+    } else {
+      Serial.println("Fallo en la reconexión TCP. Reintentando en 5 segundos...");
+      delay(5000);
+    }
+  }
+}
 
 void TCP_task(void * param) {
   for (;;) {
-    if (client.connect(server_ip, server_port)) {
-      // Enviar datos al servidor
-      client.print("ligth value : ");
+    if (WiFi.status() != WL_CONNECTED) {
+      reconnectWiFi();
+    }
+    
+    if (!client.connected()) {
+      reconnectTCP();
+    }
+    
+    if (client.connected()) {
+      // Tu código existente para enviar datos
+      client.print("light value : ");
       client.print(value_ligth);
       client.print(", led value : ");
       client.println(value_output);
       
-      // Esperar un poco para dar tiempo al servidor a responder
-      delay(100);
-      
-      // Verificar si hay datos disponibles del servidor
+      // Verificar respuesta del servidor
       if (client.available()) {
         String response = client.readStringUntil('\n');
-        response.trim(); // Eliminar espacios en blanco y saltos de línea
-        
-        // Intentar convertir la respuesta a un número
+        response.trim();
         int new_set_point = response.toInt();
-        
-        // Verificar si la conversión fue exitosa y el valor está en un rango razonable
-        if (new_set_point > 0 && new_set_point <= 4095) { // 4095 es el máximo para un ADC de 12 bits
+        if (new_set_point > 0 && new_set_point <= 4095) {
           pidController.Setpoint = new_set_point;
           Serial.print("Nuevo set point recibido: ");
           Serial.println(new_set_point);
         }
       }
-      
-      client.stop(); // Cerrar la conexión después de cada intercambio
-    } else {
-      Serial.println("/ fallo envio de datos");
     }
     
     digitalWrite(PIN_LED, HIGH);
@@ -156,10 +175,8 @@ void TCP_task(void * param) {
 // Configuración inicial
 void setup() {
   init();
-
     // tarea Lectura Analogica + PID + LED -> Core 0
   xTaskCreatePinnedToCore( PID_task,"", 10000,NULL,1,NULL,0);  
-
     // tarea Enviar datos TCP por WIFI -> Core 1
   xTaskCreatePinnedToCore( TCP_task,"", 10000,NULL,1,NULL,1);             
 }
