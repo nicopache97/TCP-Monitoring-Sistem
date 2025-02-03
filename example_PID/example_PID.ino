@@ -13,11 +13,11 @@
 #define LED_LENGTH  5 // tira led de 5 pixels
 
 // Parámetros del PID
-#define SET_POINT 2000   // Punto objetivo
+#define SET_POINT 1500   // Punto objetivo
 #define SAMPLE_TIME 200 // Tiempo entre mediciones (ms)
 
 // Configuración del controlador PID 
-PID::PIDParameters<double> parameters(0.1, 0.009, 0.0007); // Kp, Ki, Kd
+PID::PIDParameters<double> parameters(0.002, 0.08, 0.0011); // Kp, Ki, Kd
 PID::PIDController<double> pidController(parameters);
 
 // Objeto controlador Neopixel
@@ -26,7 +26,7 @@ Adafruit_NeoPixel strip(LED_LENGTH, LED_PIN, NEO_GRB + NEO_KHZ800);
 // Variables para timing
 unsigned long lastTime = 0;
 
-void encenderBlanco(int brillo);
+void encenderBlanco(float brillo);
 
 void setup() {
   // Configuración inicial
@@ -77,18 +77,25 @@ void loop() {
     encenderBlanco(pidController.Output); // ajusta con el error el brillo de los leds
 
     digitalWrite(PIN_LED, HIGH);
-    delay(50);
+    delay(2);
     digitalWrite(PIN_LED, LOW);
     
     lastTime = currentTime;
   }
 }
 
-void encenderBlanco(int brillo) {
+// prende tira led en blanco, con mayor brillo en el led central
+void encenderBlanco(float brillo) {
   if(brillo>255) brillo=255;// trunca de 0 a 255
-  if(brillo<0) brillo=0; 
-  for(int i=0; i<LED_LENGTH; i++) {
-      strip.setPixelColor(i, strip.Color(brillo, brillo, brillo));
+  if(brillo<0) brillo=0;
+
+  int brillos[5];
+  brillos[0] = brillos[4] = brillo;
+  brillos[1] = brillos[3] = min(255, (int)(brillo * 3));
+  brillos[2] = min(255, (int)(brillo * 10));
+
+  for (int i = 0; i < LED_LENGTH; i++) {
+    strip.setPixelColor(i, strip.Color(brillos[i], brillos[i], brillos[i]));
   }
   strip.show();
 }
