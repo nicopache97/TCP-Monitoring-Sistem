@@ -72,6 +72,41 @@ La maquina server debe estar conectado en la misma red que la ESP32, esto se pue
 
 ### ESP32
 Previamente se debe cargar el programa *`ESP-program.ino`* a la placa, luego debe conectar el sondor LDR, la tira LED WS2812b y finalmente la alimentacion, como se muestra en la siguiente imagen 
-*si desea utilizar las configuraciones de depuracion, es recomendable conectar la ESP directamente a una computadora*
+> *si desea utilizar las configuraciones de depuracion, es recomendable conectar la ESP directamente a una computadora*
 
+### Conecciones de los sensores
 ![Conexión ESP32S-Led-Ldr](/IMG/Esquema%20de%20Coneccion%20ESP32S-LED-LDR.jpg)
+
+### Pines de la ESP32S utilizada
+![pinout-ESP32S](/IMG/NodeMCU-ESP32S-pinout.jpg)
+___
+
+## Como instalar usar el programa
+ 
+### 1. Server
+   - copie la carpeta **`TCP_Server/`** en el directorio de su preferencia
+   - instale node JS desde su [*pagina oficial*](https://nodejs.org/en/download)
+   - ejecute el scrypt *`TCP_Server/run.cmd`*
+   - debe abrirse una terminal con todos las IPv4 asociadas a su maquina, junto con el puerto de escucha por defecto `Port : 12345`
+
+### 2. En la ESP32
+   - copie la carpeta **`ESP-program/`** en el directorio de su preferencia
+   - instale *Arduino IDE 2.3.4* desde su [*pagina oficial*](https://www.arduino.cc/en/software) segun su sistema operativo
+   - instale el driver de comunicacion serie segun su modelo de placa: algunas disponen del controlador **`'CH340'`**  y otras **`'CP2102'`**
+   -  desde ArduinoIDE abra las configuraciones, en la seccion de placas personalizadas agregue el siguiente link [*`https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`*](https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json)
+   - desde Arduino IDE conectado a internet, abra el *`gestor de placas`*, e instale ***`esp32 v3.1.1`** de Espressif Systems*
+   - con la ESP32 conectada, seleccione el puerto COM correspondiente, junto con la version de placa utilizada, nosotros utilizamos *ALKS ESP32*
+   - cargue el programa *`ESP-program.ino`* a su ESP32, solo cuando haya cambiado las configuraciones de RED,y Servidor
+
+### 3. Circuito Fisico y conecciones
+   - debe tener conectado el servidor y la ESP32 en la misma red local. Esto puede lograrlo creando una zona wifi desde las configuraciones de la ESP, o dede un movile, o desde una computadora, o router. para que ambos dispositivos esten conectados de forma local. Para mejorar la latencia se recomienda no usar los wifi libres de Facultad. En nuestro caso, utilizamos un router conectdo por cable ethernet directo a la computadora, la esp32 se conecta al wifi del router como host.
+   - ademas debe alimentar la ESP32, tanto desde el puerto USB o desde los pines RAW (con unas baterias). Se recomienda usar el puerto USB para conectarlo a la computadora de la misma manera que se programo, para ver los LOGS desde el monitor serie, pero no es indispensable
+   - conecte el sensor y el actuador, en esta implementacion es un LDR con una resistencia de 1Kohm en serie, y la tira led ws2812b
+
+### Notas:
+
+   > recuerde que la luz emitida por la tira led debe afectar **directamente al LDR**, para que el circuito de control quede realimentado, de no ser asi, el sistema es inestable y divergera
+
+   > si conecta al reves el LDR el sistema puede quedar realimentado positivamente, se recomienda usar el LRD conectado entre los +5v y el pin de lectura analogico *GPIO32*
+
+   > Se probaron diversas configuraciones de pines, el pin *`GPIO32`* no interfiere con las conecciones WIFI ya que usa el ADC1, por lo que es el mas apropiado para esta tarea, el pin *`GPIO5`* es el mas apropiado para salida digital, ya que no tiene pre-condiciones de estado que limitan el booteo de la placa. No todos los pines pueden ser configurados como Digitales, ni Analogicos 
