@@ -103,6 +103,8 @@ ___
    - ademas debe alimentar la ESP32, tanto desde el puerto USB o desde los pines RAW (con unas baterias). Se recomienda usar el puerto USB para conectarlo a la computadora de la misma manera que se programo, para ver los LOGS desde el monitor serie, pero no es indispensable
    - conecte el sensor y el actuador, en esta implementacion es un LDR con una resistencia de 1Kohm en serie, y la tira led ws2812b
 
+### Demo short en [YouTube](https://youtu.be/_bBW_ashCTM?si=rxqPB7zVi3FnZUOu)
+
 ### Notas:
 
    > recuerde que la luz emitida por la tira led debe afectar **directamente al LDR**, para que el circuito de control quede realimentado, de no ser asi, el sistema es inestable y divergera
