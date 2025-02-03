@@ -1,5 +1,4 @@
 #include <WiFi.h>
-#include <PIDController.hpp>
 
 // Definiciones de pines
 #define PIN_LED 2
@@ -13,23 +12,12 @@ char wifi_password[32] = "123412341234";    // Contraseña de la red WiFi
 char server_ip[16] = "192.168.1.65"; // IP del servidor
 int server_port = 12345; // Puerto del servidor
 
-// Definición del tamaño del buffer circular. Esto se hace para evitar problemas de concurrencia y bloqueos entre las tareas definidas
-#define BUFFER_SIZE 10
-uint16_t buffer[BUFFER_SIZE];
-int readIndex = 0; // Índice de lectura del buffer
-int writeIndex = 0; // Índice de escritura del buffer
+uint16_t buffer;
 
 // Cliente WiFi
 WiFiClient client;
 
-PID::PIDParameters<double> parameters(4.0, 0.2, 1); // parametros Agresivos
-PID::PIDController<double> pidController(parameters);
-
-uint16_t time_update = 200; // tiempo de espera general [ms]
-#define SET_POINT 500 // valor umbral de estabilidad pid
-
-// Mutex para proteger el acceso al buffer
-SemaphoreHandle_t xMutex;
+uint16_t time_update = 200; // tiempo de refresco general de tareas [ms]
 
 // Funciones
 void analog_read_task(void *);
@@ -51,11 +39,6 @@ void init() {
   }
   Serial.println("\n \t - Conectado a WiFi");
 
-  // Configura PID
-  pidController.Input = analogRead(PIN_READ);
-  pidController.Setpoint = SET_POINT;
-  pidController.TurnOn();
-
   // Señal visual de inicio completo
   for(int i=0;i<15;i++){
     digitalWrite(PIN_LED, HIGH); delay(35);
@@ -66,21 +49,10 @@ void init() {
 // Tarea para leer valores analógicos
 void analog_read_task(void * param) {
   for (;;) {
-    if ( (writeIndex+BUFFER_SIZE-1) % BUFFER_SIZE != readIndex){ // si hay lugar en el buffer
-      uint16_t localMedicion = analogRead(PIN_READ); // Leer valor analógico
-      pidController.Input = localMedicion; // actualiza el controlador PID interno
-      pidController.Update();
-      uint16_t SalidaPID = pidController.Output;
-      if (xSemaphoreTake(xMutex, portMAX_DELAY)) { // Tomar el mutex (semáforo que protege el acceso al buffer)
-        buffer[writeIndex] = SalidaPID; // Escribir valor PID Actualizado en el buffer
-        writeIndex = (writeIndex + 1) % BUFFER_SIZE; // Actualizar índice de escritura
-        xSemaphoreGive(xMutex); // Liberar el mutex
-      }
-      Serial.print("Medicion Local: ");
-      Serial.print(localMedicion);
-      Serial.print("  Salida PID: ");
-      Serial.println(SalidaPID);
-    }
+    uint16_t localMedicion = analogRead(PIN_READ); // Leer valor analógico
+    Serial.print("Medicion Local: ");
+    Serial.print(localMedicion);
+    buffer=localMedicion;
     vTaskDelay(time_update / portTICK_PERIOD_MS);
   }
 }
@@ -88,16 +60,10 @@ void analog_read_task(void * param) {
 // Tarea para enviar datos al servidor
 void send_data_task(void * param) {
   for (;;) {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
-      if (readIndex != writeIndex) { // Verificar si hay datos para enviar
-        if (client.connect(server_ip, server_port)) { // Conectar al servidor
-          client.print(buffer[readIndex]);
-          readIndex = (readIndex + 1) % BUFFER_SIZE;
-        } else {
-          Serial.println("/ fallo envio de datos");
-        }
-      }
-      xSemaphoreGive(xMutex);
+    if (client.connect(server_ip, server_port)) { // Conectar al servidor
+      client.print(buffer);
+    } else {
+      Serial.println("/ fallo envio de datos");
     }
     vTaskDelay(time_update / portTICK_PERIOD_MS);
   }
@@ -106,8 +72,6 @@ void send_data_task(void * param) {
 // Configuración inicial
 void setup() {
   init();
-
-  xMutex = xSemaphoreCreateMutex();
 
     // tarea Lectura Analogica + PID -> Core 0
   xTaskCreatePinnedToCore( analog_read_task,"", 10000,NULL,1,NULL,0);  
